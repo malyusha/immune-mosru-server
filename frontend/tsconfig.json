@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "commonjs",
+    "allowJs": true,
+    "target": "es2017",
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@app/*": ["*"]
+    },
+    "lib": ["es2015.promise"]
+  },
+  "typeRoots": [
+    "node_modules/@types"
+  ],
+  "exclude": ["node_modules"],
+  "include": ["./src/**/*"]
+}

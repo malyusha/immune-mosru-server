@@ -90,6 +90,9 @@ type TGBotConfig struct {
 
 // ReadFromEnv reads some configuration parameters from ENV variables.
 func (c *Config) ReadFromEnv() {
+	c.HTTPServer.Addr = envOrDefault("HTTP_ADDR", c.HTTPServer.Addr)
+	c.HTTPStatusServer.Addr = envOrDefault("STATUS_HTTP_ADDR", c.HTTPStatusServer.Addr)
+
 	redisMode := redis.ConfigMode(envOrDefault("REDIS_MODE", string(c.Redis.Mode)))
 	c.Redis.Mode = redisMode
 	c.Redis.Addr = envOrDefault("REDIS_ADDR", c.Redis.Addr)
@@ -97,6 +100,8 @@ func (c *Config) ReadFromEnv() {
 	c.Log.Level = envOrDefault("LOG_LEVEL", c.Log.Level)
 	c.Log.Raw = envBoolOrDefault("LOG_RAW", c.Log.Raw)
 	c.Storage.Mongo.URI = envOrDefault("MONGO_URI", c.Storage.Mongo.URI)
+
+	c.QR.URLPattern = envOrDefault("QR_URL_PATTERN", c.QR.URLPattern)
 
 	c.Telegram.Token = envOrDefault("TELEGRAM_BOT_TOKEN", c.Telegram.Token)
 	c.Telegram.WebhookURL = envOrDefault("TELEGRAM_WEBHOOK_URL", c.Telegram.WebhookURL)
