@@ -52,17 +52,25 @@ async function main(): Promise<void> {
             data: {},
             vaccinated: false,
         };
-        logger.info(`handling qr code ${id}`);
-        try {
-            const {dateBirth, ...data} = await certsClient.getQRDataByCode(id);
-            renderData.vaccinated = true;
-            logger.info(`date birth ${dateBirth}`);
-            renderData.data = {
-                dateBirth: moment(dateBirth, 'DD.MM.YYYY').format('DD MMMM'),
-                ...data,
-            };
-        } catch (e) {
-            logger.error('failed to load data by code from service', e);
+
+        const cached = cache.get(id);
+        if (cached) {
+            renderData = cached;
+        } else {
+            logger.info(`handling qr code ${id}`);
+            try {
+                const {dateBirth, ...data} = await certsClient.getQRDataByCode(id);
+                renderData.vaccinated = true;
+                logger.info(`date birth ${dateBirth}`);
+                renderData.data = {
+                    dateBirth: moment(dateBirth, 'DD.MM.YYYY').format('DD MMMM'),
+                    ...data,
+                };
+
+                cache.set(id, renderData);
+            } catch (e) {
+                logger.error('failed to load data by code from service', e);
+            }
         }
 
         return res.render('qr', renderData);
