@@ -86,6 +86,13 @@ async function main(): Promise<void> {
     app.listen(port, () => {
         console.log(`Running at ${port}`);
     });
+
+    ['SIGINT', 'SIGTERM'].forEach((sig) => {
+        process.on(sig, (code) => {
+            logger.info(`received process code: ${code}`);
+            process.exit(code);
+        });
+    });
 }
 
 process.on('unhandledRejection', (error) => {

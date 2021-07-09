@@ -7,7 +7,7 @@
     "local": "npm run tsc && npm run copy-files && node dist/ --config=configs/local.json",
     "start": "npm i && npm run local",
     "tsc": "./node_modules/.bin/tsc",
-    "build-prod": "npm i --production && ./node_modules/.bin/tsc -p && npm run copy-files",
+    "build-prod": "./node_modules/.bin/tsc && npm run copy-files",
     "copy-files": "cp -r ./src/pages ./dist/ && cp -r ./src/assets ./dist/"
   },
   "author": "",

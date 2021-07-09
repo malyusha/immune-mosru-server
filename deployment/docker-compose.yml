@@ -6,10 +6,6 @@ x-mongo-image: &mongo_image
 
 services:
   immune-server:
-    image: immune:local
-    build:
-      context: ../
-      dockerfile: cmd/immune/Dockerfile
     ports:
       - 3000 # status server port
       - 10000 # tg bot listen webhook port
@@ -42,11 +38,6 @@ services:
     ports:
       - 9000
 
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
   nginx:
     image: nginx:1.21.1
     volumes:
@@ -54,11 +45,12 @@ services:
       - ./data/certbot/www:/var/www/certbot
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro
-      - ./nginx/local/conf.d/:/etc/nginx/conf.d/
       - ./nginx/html/:/usr/share/nginx/html/
       - nginx-logs:/var/log/vaxhole.ru
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     ports:
       - "80:80"
+      - "443:443"
     networks:
       - immune
     depends_on:

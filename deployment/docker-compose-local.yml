@@ -1,0 +1,11 @@
+version: "3.7"
+
+services:
+  immune-server:
+    image: immune:local
+    build:
+      context: ../
+      dockerfile: cmd/immune/Dockerfile
+  nginx:
+    volumes:
+      - ./nginx/local/conf.d/:/etc/nginx/conf.d/

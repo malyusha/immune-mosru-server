@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+  immune-server:
+    image: registry.digitalocean.com/malyusha/immune-server:latest
+    environment:
+      - REDIS_ADDR="redis://:secret@redis:6379"
+      - MONGO_URI="mongodb://mongo:27017"
+      - QR_URL_PATTERN="https://lmune-mos.ru/qr?id=%s"
+  nginx:
+    volumes:
+      - ./nginx/prod/conf.d/:/etc/nginx/conf.d/
