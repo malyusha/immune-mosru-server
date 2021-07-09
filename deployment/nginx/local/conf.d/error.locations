@@ -1,0 +1,18 @@
+error_page 404 /error_404.html;
+error_page 502 504 /error_502.html;
+error_page 500 503 /error_50x.html;
+
+location = /error_50x.html {
+  root /usr/share/nginx/html;
+  internal;
+}
+
+location = /error_404.html {
+  root /usr/share/nginx/html;
+  internal;
+}
+
+location = /error_502.html {
+  root /usr/share/nginx/html;
+  internal;
+}

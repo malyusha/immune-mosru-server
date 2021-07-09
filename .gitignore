@@ -1,0 +1,4 @@
+.VS_Code
+.idea
+vendor/
+*_gen.go

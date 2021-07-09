@@ -1,0 +1,3 @@
+location /immune/bot/ {
+  proxy_pass http://vax-bot/;
+}

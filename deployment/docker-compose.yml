@@ -1,0 +1,67 @@
+version: "3.7"
+
+x-mongo-image: &mongo_image
+  image: mongo:4.2
+  restart: always
+
+services:
+  immune-server:
+    image: immune:local
+    build:
+      context: ../
+      dockerfile: cmd/immune/Dockerfile
+    ports:
+      - 3000 # status server port
+      - 10000 # tg bot listen webhook port
+      - 8080 # server api port
+    volumes:
+      - ../configs/config.json:/configs/config.json
+      - ../configs/values-compose.json:/configs/values.json
+    networks:
+      - immune
+    depends_on:
+      - redis
+      - mongo
+
+  nginx:
+    image: nginx:1.21.1
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro
+      - ./nginx/local/conf.d/:/etc/nginx/conf.d/
+      - ./nginx/html/:/usr/share/nginx/html/
+      - nginx-logs:/var/log/vaxhole.ru
+    ports:
+      - "80:80"
+    networks:
+      - immune
+    depends_on:
+      - immune-server
+  mongo:
+    <<: *mongo_image
+    networks:
+      - immune
+    ports:
+      - '27017'
+    volumes:
+      - immune_mongo_data:/data/db
+      - immune_mongo_config:/data/configdb
+  redis:
+    image: bitnami/redis:6.0.14
+    networks:
+      - immune
+    environment:
+      - REDIS_PASSWORD=secret
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    volumes:
+      - redis-data:/bitnami/redis/data
+
+networks:
+  immune:
+    name: immune
+
+volumes:
+  nginx-logs:
+  immune_mongo_data:
+  immune_mongo_config:
+  redis-data:
