@@ -33,11 +33,16 @@ services:
       - 9000
 
   nginx:
-    image: nginx:1.21.1
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    container_name: nginx
+    restart: always
+    build:
+      context: ./nginx
+      network: host
+      args:
+        - CERTBOT_EMAIL=info@vaxhole.ru
+        - DOMAIN_LIST=lmune-mos.ru,vaxhole.ru
     volumes:
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro
       - ./nginx/html/:/usr/share/nginx/html/
@@ -50,13 +55,6 @@ services:
     depends_on:
       - immune-server
       - immune-frontend
-
-  certbot:
-    image: certbot/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    volumes:
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
 
   mongo:
     <<: *mongo_image
@@ -84,6 +82,7 @@ networks:
     name: immune
 
 volumes:
+  letsencrypt:
   nginx-logs:
   immune_mongo_data:
   immune_mongo_config:
