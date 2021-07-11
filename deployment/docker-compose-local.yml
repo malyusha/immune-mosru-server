@@ -20,5 +20,8 @@ services:
     build:
       context: ../frontend
   nginx:
+    ports:
+    - "80:80"
+    - "5000:5000"
     volumes:
       - ./nginx/local/conf.d/:/etc/nginx/conf.d/
