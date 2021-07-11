@@ -20,7 +20,7 @@ export default class AuthClient {
     constructor(cfg: HTTPClientConfig) {
         const config: AxiosRequestConfig = {
             baseURL: cfg.url,
-            timeout: cfg.timeoutMs,
+            timeout: Number(cfg.timeoutMs),
             headers: {'User-Agent': 'immune-app'}
         };
 

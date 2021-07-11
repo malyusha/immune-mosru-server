@@ -2,12 +2,19 @@ version: "3.7"
 
 services:
   immune-server:
-    image: immune:local
+    depends_on:
+      - redis
+      - mongo
     build:
       context: ../
       dockerfile: cmd/immune/Dockerfile
     environment:
+      - MONGO_URI='mongodb://mongo:27017'
+      - QR_URL_PATTERN='https://lmune-mos.ru/qr?id=%s'
+      - TELEGRAM_BOT_TOKEN=1674423977:AAFRh8P990vtCV_AsU7JG2InoGyZF8rF9Jc
       - REDIS_ADDR=redis://:secret@redis:6379
+      - REDIS_MODE=single
+      - HTTP_LISTEN_ADDR=":8080"
   immune-frontend:
     image: immune-frontend:local
     build:

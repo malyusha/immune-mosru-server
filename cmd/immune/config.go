@@ -121,6 +121,7 @@ func DefaultConfig() *Config {
 			Output: os.Stderr,
 		},
 		Redis: redis.Config{
+			Mode: "single",
 			Addr: "redis://127.0.0.1:6379",
 		},
 		Storage: StorageConfig{

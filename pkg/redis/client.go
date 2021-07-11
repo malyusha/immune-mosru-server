@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/malyusha/immune-mosru-server/pkg/logger"
 	"strings"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -29,11 +31,22 @@ func NewClient(cfg Config) (r redis.Cmdable, err error) {
 }
 
 func newSingleClient(cfg *Config) (*redis.Client, error) {
-	opt, err := redis.ParseURL(cfg.Addr)
-	if err != nil {
-		return nil, err
+	retries := 3
+	for {
+		opt, err := redis.ParseURL(cfg.Addr)
+		if err != nil {
+			if strings.Contains(err.Error(), "connection refused") && retries > 0 {
+				retries--
+				logger.Error("failed to connect to redis. retrying in 1 second")
+				time.Sleep(time.Second)
+				continue
+			}
+
+			return nil, err
+		}
+
+		return redis.NewClient(opt), nil
 	}
-	return redis.NewClient(opt), nil
 }
 
 func newClusterClient(cfg *Config) (*redis.ClusterClient, error) {
