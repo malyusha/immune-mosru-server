@@ -20,10 +20,6 @@ services:
       - mongo
 
   immune-frontend:
-    image: immune-frontend:local
-    build:
-      context: ../frontend
-      dockerfile: frontend/Dockerfile
     networks:
       - immune
     environment:

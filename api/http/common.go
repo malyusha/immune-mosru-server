@@ -1,6 +1,6 @@
 package http
 
 const (
-	// API current version
+	// Version is the API current version
 	Version = "1.0"
 )

@@ -23,7 +23,7 @@ async function main(): Promise<void> {
     try {
         config = loadConfiguration(argv.config);
     } catch (e) {
-        console.log(`failed to load configuration: ${e}`);
+        logger.error(`failed to load configuration: ${e}`);
         process.exit(1);
     }
 
@@ -82,9 +82,8 @@ async function main(): Promise<void> {
         return res.status(404).send('Not found');
     });
 
-    const port = process.env.APP_PORT || 8080;
-    app.listen(port, () => {
-        console.log(`Running at ${port}`);
+    app.listen(config.http.port, () => {
+        logger.info(`Running at ${config.http.port}`);
     });
 
     ['SIGINT', 'SIGTERM'].forEach((sig) => {

@@ -6,6 +6,10 @@ services:
     build:
       context: ../
       dockerfile: cmd/immune/Dockerfile
+  immune-frontend:
+    image: immune-frontend:local
+    build:
+      context: ../frontend
   nginx:
     volumes:
       - ./nginx/local/conf.d/:/etc/nginx/conf.d/
