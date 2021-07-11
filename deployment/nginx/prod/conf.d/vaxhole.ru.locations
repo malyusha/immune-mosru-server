@@ -1,7 +1,7 @@
-location /immune/bot/ {
-  proxy_pass http://vax-bot/;
-}
-
 location /.well-known/acme-challenge/ {
   root /var/www/cerbot;
+}
+
+location /immune/bot/ {
+  proxy_pass http://vax-bot/;
 }
