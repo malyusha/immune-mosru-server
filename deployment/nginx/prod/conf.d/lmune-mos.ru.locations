@@ -1,3 +1,7 @@
 location / {
   proxy_pass http://immune-frontend/;
 }
+
+location /.well-known/acme-challenge/ {
+  root /var/www/cerbot;
+}
