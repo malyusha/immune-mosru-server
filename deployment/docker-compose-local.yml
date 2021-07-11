@@ -6,6 +6,8 @@ services:
     build:
       context: ../
       dockerfile: cmd/immune/Dockerfile
+    environment:
+      - REDIS_ADDR=redis://:secret@redis:6379
   immune-frontend:
     image: immune-frontend:local
     build:

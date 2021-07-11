@@ -1,7 +1,0 @@
-listen 80;
-listen [::]:80 default_server;
- # listen 443 ssl;
-#ssl_certificate     /etc/letsencrypt/live/vaxhole.ru/fullchain.pem;
-#ssl_certificate_key /etc/letsencrypt/live/vaxhole.ru/privkey.pem;
-#include /etc/letsencrypt/options-ssl-nginx.conf;
-# ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;

@@ -1,0 +1,3 @@
+upstream immune-frontend {
+  server immune-frontend:9000;
+}

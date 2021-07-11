@@ -10,9 +10,6 @@ services:
       - 3000 # status server port
       - 10000 # tg bot listen webhook port
       - 8080 # server api port
-    volumes:
-      - ../configs/config.json:/configs/config.json
-      - ../configs/values-compose.json:/configs/values.json
     networks:
       - immune
     depends_on:
@@ -20,6 +17,7 @@ services:
       - mongo
 
   immune-frontend:
+    hostname: immune-frontend
     networks:
       - immune
     environment:
@@ -43,7 +41,6 @@ services:
       - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro
       - ./nginx/html/:/usr/share/nginx/html/
       - nginx-logs:/var/log/vaxhole.ru
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     ports:
       - "80:80"
       - "443:443"
@@ -63,6 +60,8 @@ services:
       - immune_mongo_config:/data/configdb
   redis:
     image: bitnami/redis:6.0.14
+    ports:
+      - 6379
     networks:
       - immune
     environment:

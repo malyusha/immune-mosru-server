@@ -1,0 +1,3 @@
+upstream immune-frontend {
+    server http://immune-frontend:9000;
+}
