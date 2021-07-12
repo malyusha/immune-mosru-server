@@ -1,7 +1,0 @@
-upstream vax-bot {
-  server immune-server:10000;
-}
-
-upstream vax-api {
-  server immune-server:8080;
-}

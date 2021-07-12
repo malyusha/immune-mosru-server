@@ -73,6 +73,9 @@ func (b *Bot) Start(ctx context.Context) chan error {
 
 func NewBot(token string, opts ...Option) (*Bot, error) {
 	settings := tb.Settings{
+		Reporter: func(err error) {
+			logger.Errorf("bot error: %s", err.Error())
+		},
 		Token:  token,
 		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
 	}

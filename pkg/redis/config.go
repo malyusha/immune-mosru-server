@@ -32,6 +32,6 @@ func (c *ConfigMode) UnmarshalJSON(b []byte) error {
 }
 
 type Config struct {
-	Mode ConfigMode `json:"mode"`
-	Addr string     `json:"addr"`
+	Mode ConfigMode `yaml:"mode" env:"REDIS_MODE"`
+	Addr string     `yaml:"addr" env:"REDIS_ADDR"`
 }

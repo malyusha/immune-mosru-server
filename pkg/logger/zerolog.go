@@ -84,6 +84,10 @@ func NewZerologLogger(cfg *Config) (*zerologLogger, error) {
 		}
 	}
 
+	if cfg.Output == nil {
+		cfg.Output = os.Stdout
+	}
+
 	if cfg.Raw {
 		cfg.Output = zerolog.ConsoleWriter{TimeFormat: time.RFC3339, Out: cfg.Output}
 	}

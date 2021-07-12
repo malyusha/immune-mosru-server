@@ -1,0 +1,5 @@
+location /immune/bot/ {
+  resolver 127.0.0.11 valid=30s;
+  set $upstream_bot immune-server:10000;
+  proxy_pass http://$upstream_bot/;
+}

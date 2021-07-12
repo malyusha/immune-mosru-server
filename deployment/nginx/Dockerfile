@@ -3,15 +3,17 @@ FROM nginx:stable
 ARG CERTBOT_EMAIL=info@domain.com
 ARG DOMAIN_LIST
 
-RUN  apt-get update \
-      && apt-get install -y cron certbot python-certbot-nginx bash wget \
-      && certbot certonly --standalone --agree-tos -m "${CERTBOT_EMAIL}" -n -d ${DOMAIN_LIST} \
-      && rm -rf /var/lib/apt/lists/* \
-      && echo "PATH=$PATH" > /etc/cron.d/certbot-renew  \
-      && echo "@monthly certbot renew --nginx >> /var/log/cron.log 2>&1" >>/etc/cron.d/certbot-renew \
-      && crontab /etc/cron.d/certbot-renew
+COPY envsubst-templates.sh /usr/bin/envsubst-templates.sh
+COPY gen-certs.sh /usr/bin/gen-certs.sh
+
+RUN apt-get update
+RUN apt-get install -y cron bash curl
+RUN curl -L https://github.com/a8m/envsubst/releases/download/v1.2.0/envsubst-Linux-x86_64 -o envsubst
+RUN chmod +x envsubst && mv envsubst /usr/bin/envsubst-go
+
+# install all required utils
+RUN sh -c "CERTBOT_EMAIL=${CERTBOT_EMAIL} DOMAIN_LIST=${DOMAIN_LIST} gen-certs.sh"
 
 VOLUME /etc/letsencrypt
 
-
-CMD [ "sh", "-c", "cron && nginx -g 'daemon off;'" ]
+CMD [ "sh", "-c", "envsubst-templates.sh && cron && nginx -g 'daemon off;'" ]

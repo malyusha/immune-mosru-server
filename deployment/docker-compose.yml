@@ -34,22 +34,17 @@ services:
 
   nginx:
     container_name: nginx
-    restart: always
-    build:
-      context: ./nginx
-      network: host
-      args:
-        - CERTBOT_EMAIL=info@vaxhole.ru
-        - DOMAIN_LIST=lmune-mos.ru,vaxhole.ru
     volumes:
-      - letsencrypt:/etc/letsencrypt
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro
-      - ./nginx/html/:/usr/share/nginx/html/
-      - nginx-logs:/var/log/vaxhole.ru
-    ports:
-      - "80:80"
-      - "443:443"
+      - ./nginx/conf/templates/:/etc/nginx/templates/
+      - ./nginx/conf/locations/:/etc/nginx/conf.d/locations/
+      - ./nginx/conf/common/:/etc/nginx/conf.d/common/
+      - ./nginx/conf/include/:/etc/nginx/conf.d/include/
+      - ./nginx/conf/upstream/:/etc/nginx/conf.d/upstream/
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro # main config
+      - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro # main proxy config
+      - ./nginx/html/:/usr/share/nginx/html/ # custom error templates
+      - ./nginx/letsencrypt:/etc/letsencrypt # certificates volume
+      - nginx-logs:/var/log/vaxhole.ru #logs volume
     networks:
       - immune
     depends_on:
@@ -82,7 +77,6 @@ networks:
     name: immune
 
 volumes:
-  letsencrypt:
   nginx-logs:
   immune_mongo_data:
   immune_mongo_config:

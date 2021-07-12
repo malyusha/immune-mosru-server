@@ -15,4 +15,4 @@ build:
 		-v -o $(NAME) ./cmd/$(NAME)
 
 run-local:
-	go run ./cmd/immune -values=configs/values.json
+	go run ./cmd/immune -config=configs/local.yml

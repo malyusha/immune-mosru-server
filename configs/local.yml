@@ -1,0 +1,17 @@
+app_http:
+  addr: :8080
+  shutdown_timeout: 10s
+status_http:
+  addr: :9090
+redis:
+  addr: redis://localhost:6379
+  mode: single
+mongo:
+  addr: mongodb://localhost:27017
+telegram:
+  token: 1674423977:AAFRh8P990vtCV_AsU7JG2InoGyZF8rF9Jc
+qr:
+  url_pattern: http://localhost:9000/qr?id=%s
+log:
+  level: debug
+  raw: true

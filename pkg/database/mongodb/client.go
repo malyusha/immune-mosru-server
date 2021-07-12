@@ -13,7 +13,7 @@ import (
 )
 
 type Config struct {
-	URI string `json:"uri"`
+	Addr string `yaml:"addr" env:"MONGO_ADDR"`
 }
 
 // NewClient returns new client wrapper for mongo client and database.
@@ -21,7 +21,7 @@ func NewClient(ctx context.Context, cfg Config) (*mongo.Client, error) {
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
-	client, err := mongo.NewClient(options.Client().ApplyURI(cfg.URI))
+	client, err := mongo.NewClient(options.Client().ApplyURI(cfg.Addr))
 	if err != nil {
 		return nil, fmt.Errorf("create client error: %s", err)
 	}
@@ -43,8 +43,8 @@ func NewClient(ctx context.Context, cfg Config) (*mongo.Client, error) {
 }
 
 func validateConfig(cfg Config) error {
-	if cfg.URI == "" {
-		return errors.New("mongo connection URI not provided")
+	if cfg.Addr == "" {
+		return errors.New("mongo connection Addr not provided")
 	}
 
 	return nil

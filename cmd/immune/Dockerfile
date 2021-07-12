@@ -19,4 +19,4 @@ ARG NAME
 COPY --from=build /go/src/immune/immune /immune
 
 ENTRYPOINT ["/immune"]
-CMD ["-config=/configs/config.json", "-values=/configs/values.json"]
+CMD ["-config=/configs/config.yml"]

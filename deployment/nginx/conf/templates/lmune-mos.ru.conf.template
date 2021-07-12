@@ -1,0 +1,22 @@
+server {
+  # MUST BE PASSED VIA ENV VARIABLE
+  server_name $IMMUNE_SERVER_NAME;
+  listen $IMMUNE_HTTPS_PORT ssl;
+  ssl_certificate     /etc/letsencrypt/live/$IMMUNE_SERVER_NAME/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/$IMMUNE_SERVER_NAME/privkey.pem;
+  #include /etc/letsencrypt/options-ssl-nginx.conf;
+  #ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+  include conf.d/include/conf.include; # common server configurations
+  include conf.d/common/error.locations; # error responses
+
+  include conf.d/locations/lmune-mos.ru.locations; # service locations
+}
+
+server {
+  # Proxy all requests from :80 port to :443
+  listen $IMMUNE_HTTP_PORT;
+  server_name $IMMUNE_SERVER_NAME;
+
+  return 301 https://$$host$$request_uri;
+}
