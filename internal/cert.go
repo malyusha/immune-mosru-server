@@ -14,6 +14,7 @@ import (
 
 type VaxCert struct {
 	ID string
+	OwnerID, // User, that owns certificate.
 	Code,
 	FirstName,
 	LastName,
@@ -25,7 +26,8 @@ type VaxCert struct {
 	ExpiringAt time.Time
 }
 
-// For Иванов Иван Иванович returns И***** И*** И*******
+// FullName  returns concatenated full name, that consists of all user credentials.
+// For Иванов Иван Иванович returns И***** И*** И*******.
 func (c *VaxCert) FullName() string {
 	l, f, s := hideString(c.LastName), hideString(c.FirstName), hideString(c.SecondName)
 	return strings.TrimRight(fmt.Sprintf("%s %s %s", l, f, s), " ")
@@ -56,12 +58,13 @@ type CertificatesStorage interface {
 	UpdateCert(ctx context.Context, code string, cert UpdateCertData) (*VaxCert, error)
 }
 
-func CreateVaxCert(code, firstName, lastName, secondName, dateOfBirth string) *VaxCert {
+func CreateVaxCert(code, ownerID, firstName, lastName, secondName, dateOfBirth string) *VaxCert {
 	// random number of days with limit of 30
 	extractDays := -1 * (time.Duration(rand.Intn(30)) * 24 * time.Hour)
 
 	return &VaxCert{
 		Code:        code,
+		OwnerID:     ownerID,
 		FirstName:   firstName,
 		LastName:    lastName,
 		SecondName:  secondName,

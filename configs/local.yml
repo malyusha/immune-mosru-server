@@ -12,6 +12,9 @@ telegram:
   token: 1674423977:AAFRh8P990vtCV_AsU7JG2InoGyZF8rF9Jc
 qr:
   url_pattern: http://localhost:9000/qr?id=%s
-log:
-  level: debug
-  raw: true
+service:
+  unique_invite: 'broo'
+  invite_code_len: 5
+  invites_per_user: 0
+  admin_telegram_id: 252476202
+  admin_invites_num: 5

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 env=local
 if [ -n "$IMMUNE_ENV" ]; then

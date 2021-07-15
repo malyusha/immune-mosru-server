@@ -11,6 +11,7 @@ import (
 	"github.com/malyusha/immune-mosru-server/internal/bot"
 	botRedis "github.com/malyusha/immune-mosru-server/internal/bot/redis"
 	"github.com/malyusha/immune-mosru-server/internal/storage/mongo"
+	"github.com/malyusha/immune-mosru-server/internal/users"
 	"github.com/malyusha/immune-mosru-server/internal/vaxcert"
 	"github.com/malyusha/immune-mosru-server/pkg/contextutils"
 	"github.com/malyusha/immune-mosru-server/pkg/database/mongodb"
@@ -43,9 +44,14 @@ func main() {
 	var certsStorage internal.CertificatesStorage
 	mongoClient := cfg.initializeMongoClient(ctx)
 
+	db := mongoClient.Database("immune")
 	certsStorage, err = mongo.NewCertsStorage(ctx, mongodb.CollectionConfig{
-		DB: mongoClient.Database("immune"),
+		DB: db,
 	})
+	usersStorage, err := mongo.NewUsersStorage(ctx, mongodb.CollectionConfig{
+		DB: db,
+	})
+
 	if err != nil {
 		logger.Fatalf("failed to create certs storage: %s", err)
 	}
@@ -59,11 +65,34 @@ func main() {
 	botDataStorage = botRedis.NewRedisDataStorage(cache)
 	botStateManager = botRedis.NewStateStorage(cache)
 
-	vaxService := vaxcert.NewService(certsStorage, cache)
+	vaxService := vaxcert.NewService(certsStorage, usersStorage, cache)
+
+	usersServiceOpts := []users.Option{
+		users.WithUniqueCode(cfg.Service.UniqueInvite),
+		users.WithTelegramAdminId(cfg.Service.AdminTelegramID),
+	}
+
+	if cfg.Service.AdminInvitesNum != nil {
+		usersServiceOpts = append(usersServiceOpts, users.WithAdminInvites(*cfg.Service.AdminInvitesNum))
+	}
+
+	if cfg.Service.InviteCodeLength != nil {
+		usersServiceOpts = append(usersServiceOpts, users.WithDefaultInviteCodeLen(*cfg.Service.InviteCodeLength))
+	}
+	if cfg.Service.InvitesPerUser != nil {
+		usersServiceOpts = append(usersServiceOpts, users.WithInvitesPerUser(*cfg.Service.InvitesPerUser))
+	}
+
+	usersService, err := users.NewService(usersStorage, usersServiceOpts...)
+	if err != nil {
+		logger.Fatalf("failed to initialize users service: %s", err)
+	}
+
 	qrGen := bot.NewQRGenerator(cfg.QR.URLPattern)
 
 	// Create telegram bot
 	tgBotOts := []telegram.Option{
+		telegram.WithUsersService(usersService),
 		telegram.WithCertificatesService(vaxService),
 		telegram.WithQRGenerator(qrGen),
 		telegram.WithDataStorage(botDataStorage),
@@ -74,6 +103,11 @@ func main() {
 		// instead of long polling.
 		tgBotOts = append(tgBotOts, telegram.WithWebhook(cfg.Telegram.WebhookURL, cfg.Telegram.ListenAddr))
 	}
+
+	if cfg.Service.AdminTelegramID != nil {
+		tgBotOts = append(tgBotOts, telegram.WithAdminUserId(*cfg.Service.AdminTelegramID))
+	}
+
 	tgBot, err := telegram.NewBot(cfg.Telegram.Token, tgBotOts...)
 
 	if err != nil {

@@ -8,15 +8,15 @@ import (
 
 type inmemDataStorage struct {
 	rw   *sync.RWMutex
-	data map[int]*UserData
+	data map[string]*UserData
 }
 
 type UserData struct {
-	QRRetries   int
-	Credentials UserCredentials
+	InviteNotificationSent bool
+	Credentials            UserCredentials
 }
 
-func (m *inmemDataStorage) GetData(ctx context.Context, id int) (*UserData, error) {
+func (m *inmemDataStorage) GetData(ctx context.Context, id string) (*UserData, error) {
 	m.rw.RLock()
 	userState := m.get(id)
 	m.rw.RUnlock()
@@ -28,7 +28,7 @@ func (m *inmemDataStorage) GetData(ctx context.Context, id int) (*UserData, erro
 	return userState, nil
 }
 
-func (m *inmemDataStorage) SetData(ctx context.Context, id int, state *UserData) error {
+func (m *inmemDataStorage) SetData(ctx context.Context, id string, state *UserData) error {
 	m.rw.Lock()
 	m.data[id] = state
 	m.rw.Unlock()
@@ -36,11 +36,11 @@ func (m *inmemDataStorage) SetData(ctx context.Context, id int, state *UserData)
 	return nil
 }
 
-func (m *inmemDataStorage) set(id int, state *UserData) {
+func (m *inmemDataStorage) set(id string, state *UserData) {
 	m.data[id] = state
 }
 
-func (m *inmemDataStorage) get(id int) *UserData {
+func (m *inmemDataStorage) get(id string) *UserData {
 	if uState, ok := m.data[id]; ok {
 		return uState
 	}
@@ -51,17 +51,16 @@ func (m *inmemDataStorage) get(id int) *UserData {
 func newInmemStorage() *inmemDataStorage {
 	return &inmemDataStorage{
 		rw:   new(sync.RWMutex),
-		data: make(map[int]*UserData),
+		data: make(map[string]*UserData),
 	}
 }
 
 func InitialUserData() *UserData {
 	return &UserData{
-		QRRetries:   maxQRGenerations,
 		Credentials: UserCredentials{},
 	}
 }
 
 var (
-	ErrDataMissing = errors.New("no state for user exist")
+	ErrDataMissing = errors.New("no state for sender exist")
 )

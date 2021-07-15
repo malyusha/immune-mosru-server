@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/malyusha/immune-mosru-server/pkg/logger"
+	"net"
 	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
+
+	"github.com/malyusha/immune-mosru-server/pkg/logger"
 )
 
 func NewClient(cfg Config) (r redis.Cmdable, err error) {
@@ -25,28 +27,36 @@ func NewClient(cfg Config) (r redis.Cmdable, err error) {
 		return nil, err
 	}
 
-	err = r.Ping(context.Background()).Err()
+	retries := 3
+	for retries > 0 {
+		err = r.Ping(context.Background()).Err()
+		if err == nil {
+			break
+		}
+		var nErr *net.OpError
+		if errors.As(err, &nErr) {
+			logger.Error("failed to connect to redis. retrying in 1 second")
+			time.Sleep(time.Second)
+			retries--
+			continue
+		}
+
+		return nil, err
+	}
 
 	return
 }
 
 func newSingleClient(cfg *Config) (*redis.Client, error) {
-	retries := 3
-	for {
-		opt, err := redis.ParseURL(cfg.Addr)
-		if err != nil {
-			if strings.Contains(err.Error(), "connection refused") && retries > 0 {
-				retries--
-				logger.Error("failed to connect to redis. retrying in 1 second")
-				time.Sleep(time.Second)
-				continue
-			}
-
-			return nil, err
-		}
-
-		return redis.NewClient(opt), nil
+	opt, err := redis.ParseURL(cfg.Addr)
+	if err != nil {
+		return nil, err
 	}
+
+	// just to be sure, that redis has started when initialized first time inside docker compose
+	opt.MaxRetryBackoff = time.Second
+
+	return redis.NewClient(opt), nil
 }
 
 func newClusterClient(cfg *Config) (*redis.ClusterClient, error) {

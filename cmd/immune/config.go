@@ -32,7 +32,9 @@ type Config struct {
 	// Mongo is the mongo client configuration.
 	Mongo mongodb.Config `yaml:"mongo"`
 	// Log configuration
-	Log *LogConfig `yaml:"log"`
+	Log LogConfig `yaml:"log"`
+	// ServiceConfiguration
+	Service ServiceConfig `yaml:"service"`
 }
 
 // initializeRedisClient initializes new redis client and returns it.
@@ -58,9 +60,6 @@ func (c *Config) initializeMongoClient(ctx context.Context) *mongo.Client {
 }
 
 func (c *Config) configureLogger() logger.Logger {
-	if c.Log == nil {
-		return logger.GetLogger()
-	}
 	err := logger.Configure(&logger.Config{
 		Raw:   c.Log.Raw,
 		Level: c.Log.Level,
@@ -90,6 +89,14 @@ type HTTPServerConfig struct {
 	ReadTimeout     time.Duration `yaml:"read_timeout" env:"READ_TIMEOUT" env-default:"15s"`
 	WriteTimeout    time.Duration `yaml:"write_timeout" env:"WRITE_TIMEOUT" env-default:"15s"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout" env:"IDLE_TIMEOUT" env-default:"15s"`
+}
+
+type ServiceConfig struct {
+	UniqueInvite     string `yaml:"unique_invite,omitempty" env:"UNIQUE_INVITE_CODE"`
+	InviteCodeLength *int   `yaml:"invite_code_len,omitempty" env:"INVITE_CODE_LEN"`
+	InvitesPerUser   *int   `yaml:"invites_per_user,omitempty" env:"INVITES_PER_USER"`
+	AdminTelegramID  *int   `yaml:"admin_telegram_id,omitempty" env:"ADMIN_TELEGRAM_ID"`
+	AdminInvitesNum  *int   `yaml:"admin_invites_num,omitempty" env:"ADMIN_INVITES_NUM"`
 }
 
 // QRConfig represents QR generator configuration.

@@ -7,57 +7,47 @@ import (
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
-func (b *Bot) handleMessage(ctx *Context) error {
-	senderID := ctx.GetSender().ID
-	if ctx.GetMessage().Text == "/start" {
-		b.stateManager.SetState(context.Background(), senderID, Started)
-		_, err := b.api.Send(ctx.GetSender(), "Выбери что нужно", getMenu())
-		return err
-	}
-
-	if ctx.GetState() == "" || ctx.GetState() == Started {
-		if ans := b.chatter.answerFor(ctx.GetSender().ID); ans != "" {
-			b.api.Send(ctx.GetSender(), ans)
-		}
-
+func (b *Bot) handle(ctx Context) error {
+	user := GetUser(ctx)
+	state := GetState(ctx)
+	if state == "" || state == Started {
 		return nil
 	}
 
-	prevState := ctx.GetState()
-	handler := b.machine.GetHandlerForState(ctx.GetState())
+	prevState := state
+	handler := b.machine.GetHandlerForState(state)
 
 	nextCtx, err := handler.Handle(ctx)
 	if err != nil {
-		_, err := b.api.Send(ctx.GetSender(), err.Error())
 		return err
 	}
 
-	if !b.machine.isAllowedToTransit(prevState, nextCtx.GetState()) {
-		return fmt.Errorf("transition from %s to %s not allowed", prevState, nextCtx.GetState())
+	if !b.machine.isAllowedToTransit(prevState, GetState(nextCtx)) {
+		return newInternalError(fmt.Errorf("transition from %s to %s not allowed", prevState, GetState(nextCtx)))
 	}
 
-	if nextCtx.GetData() != nil {
-		err := b.dataStorage.SetData(context.Background(), senderID, nextCtx.GetData())
+	if GetState(nextCtx) != "" {
+		err := b.dataStorage.SetData(ctx, user.ID, GetUserData(nextCtx))
 		if err != nil {
-			return fmt.Errorf("failed to set new data for handler: %w", err)
+			return newInternalError(fmt.Errorf("failed to set new data for handler: %w", err))
 		}
 	}
 
 	if handler.OnExit != nil {
 		if err := handler.OnExit(ctx); err != nil {
-			b.handleError(ctx.GetMessage().Sender, fmt.Errorf("failed to reply: %w", err))
+			handleError(ctx, newInternalError(fmt.Errorf("failed to reply: %w", err)))
 		}
 	}
 
-	nextHandler, err := b.machine.TransitFrom(senderID, prevState, nextCtx.GetState())
+	nextHandler, err := b.machine.TransitFrom(user.ID, prevState, GetState(nextCtx))
 	if err != nil {
 		return err
 	}
 
 	if nextHandler != nil && nextHandler.OnEnter != nil {
 		if err := nextHandler.OnEnter(nextCtx); err != nil {
-			b.machine.SetState(context.Background(), senderID, nextCtx.GetState())
-			b.dataStorage.SetData(context.Background(), senderID, nextCtx.GetData())
+			b.machine.SetState(context.Background(), user.ID, GetState(nextCtx))
+			b.dataStorage.SetData(context.Background(), user.ID, GetUserData(nextCtx))
 			return fmt.Errorf("OnEnter call fail: %w", err)
 		}
 	}
@@ -66,85 +56,100 @@ func (b *Bot) handleMessage(ctx *Context) error {
 }
 
 func (b *Bot) onText(m *tb.Message) {
-	ctx, err := b.newContext(m, m.Sender)
+	ctx, err := b.NewContextFromMessage(m)
 	if err != nil {
-		b.handleError(m.Sender, err)
+		handleError(ctx, err)
 		return
 	}
 
-	if err := b.handleMessage(ctx); err != nil {
-		b.handleError(m.Sender, err)
-	}
-}
-
-func (b *Bot) newContext(m *tb.Message, u *tb.User) (*Context, error) {
-	currentState, err := b.getUserChatState(u)
-	if err != nil {
-		return nil, err
-	}
-
-	currentData, err := b.getUserData(u)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Context{
-		bot:     b,
-		message: m,
-		user:    u,
-		state:   currentState,
-		data:    currentData,
-	}, nil
+	handleError(ctx, b.handle(ctx))
 }
 
 func (b *Bot) registerHandlers() {
-	b.api.Handle(&btnReceiveCode, func(m *tb.Message) {
-		ctx, err := b.newContext(m, m.Sender)
+	b.api.Handle(&btnMyInvites, func(m *tb.Message) {
+		ctx, err := b.NewContextFromMessage(m)
 		if err != nil {
-			b.handleError(m.Sender, err)
+			handleError(ctx, err)
+		}
+
+		user := GetUser(ctx)
+		invites, err := b.users.GetUserInvites(ctx, user.ID)
+		if err != nil {
+			handleError(ctx, newInternalError(err))
 			return
 		}
 
-		if ctx.GetData().QRRetries == 0 {
-			if _, err := b.api.Send(m.Sender, fmt.Sprintf("Сорян, но максимальное количество кодов - %d.", maxQRGenerations)); err != nil {
-				b.handleError(m.Sender, err)
-			}
+		ctx.Send(createInvitesMessage(invites), tb.ModeMarkdownV2)
+	})
+
+	b.api.Handle(&btnAddMoreInvites, func(m *tb.Message) {
+		ctx, err := b.NewContextFromMessage(m)
+		if err != nil {
+			handleError(ctx, err)
+		}
+
+		user := GetUser(ctx)
+		if user.TelegramData.ID != b.adminUserId {
 			return
+		}
+
+		user, err = b.users.AddInvitesToUser(ctx, user)
+		if err != nil {
+			handleError(ctx, newInternalError(err))
+			return
+		}
+
+		ctx.Send(createInvitesMessage(user.Invites), tb.ModeMarkdownV2)
+	})
+
+	b.api.Handle(&btnActivateInvite, func(m *tb.Message) {
+		ctx, err := b.NewContextFromMessage(m)
+		if err != nil {
+			handleError(ctx, err)
+		}
+
+		ctx = ContextWithState(ctx, InviteInit)
+		handleError(ctx, b.handle(ctx))
+	})
+	b.api.Handle(&btnReceiveCode, func(m *tb.Message) {
+		ctx, err := b.NewContextFromMessage(m)
+		if err != nil {
+			handleError(ctx, err)
 		}
 
 		ctx = ContextWithState(ctx, GenerateStart)
 
-		b.handleError(m.Sender, b.handleMessage(ctx))
+		handleError(ctx, b.handle(ctx))
 	})
 
+	// handle information button
 	b.api.Handle(&btnInfo, func(m *tb.Message) {
-		data, err := b.getUserData(m.Sender)
+		ctx, err := b.NewContextFromMessage(m)
 		if err != nil {
-			b.handleError(m.Sender, err)
+			handleError(ctx, err)
 			return
 		}
+
+		user := GetUser(ctx)
 
 		md := fmt.Sprintf(`
 *Информация*
 
 Количество генераций осталось: %d
-`, data.QRRetries)
-		if _, err = b.api.Send(m.Sender, md, tb.ModeMarkdownV2); err != nil {
-			b.handleError(m.Sender, err)
-			return
-		}
+`, user.QRGenerationsLeft)
+		handleError(ctx, ctx.Send(md, tb.ModeMarkdownV2))
 	})
 
 	b.api.Handle(tb.OnCallback, func(c *tb.Callback) {
-		ctx, err := b.newContext(c.Message, c.Sender)
+		ctx, err := b.NewContextFromCallback(c)
 		if err != nil {
-			b.handleError(c.Sender, err)
+			handleError(ctx, err)
 			return
 		}
-		ctx.callback = c
-		b.handleError(c.Sender, b.handleMessage(ctx))
+
+		handleError(ctx, b.handle(ctx))
 	})
 
-	// Global text handler. Wraps default callback for message with user state provision.
+	// Global text handler. Wraps default callback for message with sender state provision.
 	b.api.Handle(tb.OnText, b.onText)
 }

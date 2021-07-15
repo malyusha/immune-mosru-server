@@ -1,4 +1,4 @@
-package vaxcert
+package util
 
 import (
 	"math/rand"
@@ -11,7 +11,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func generateCertCode(n int) string {
+func GenerateCode(n int) string {
 	res := make([]rune, n)
 	for i := range res {
 		res[i] = allowedChars[rand.Intn(len(allowedChars))]
@@ -19,3 +19,4 @@ func generateCertCode(n int) string {
 
 	return string(res)
 }
+

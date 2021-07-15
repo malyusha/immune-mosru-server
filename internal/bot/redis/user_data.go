@@ -16,7 +16,7 @@ type dataStorage struct {
 	logger logger.Logger
 }
 
-func (r *dataStorage) GetData(ctx context.Context, id int) (*telegram.UserData, error) {
+func (r *dataStorage) GetData(ctx context.Context, id string) (*telegram.UserData, error) {
 	dst := new(telegram.UserData)
 	log := r.logger.WithContext(ctx)
 	err := r.cache.Get(ctx, getDataByUserIDKey(id), dst)
@@ -28,16 +28,12 @@ func (r *dataStorage) GetData(ctx context.Context, id int) (*telegram.UserData, 
 		return nil, fmt.Errorf("failed to get data from cache: %w", err)
 	}
 
-	log.Debugf("received data for user ID %d", id)
-
-	if id == 252476202 {
-		dst.QRRetries = 100500
-	}
+	log.Debugf("received data for user ID %s", id)
 
 	return dst, nil
 }
 
-func (r *dataStorage) SetData(ctx context.Context, id int, data *telegram.UserData) error {
+func (r *dataStorage) SetData(ctx context.Context, id string, data *telegram.UserData) error {
 	log := r.logger.WithContext(ctx)
 	item := &cache.Item{
 		Ctx:   ctx,
@@ -48,7 +44,7 @@ func (r *dataStorage) SetData(ctx context.Context, id int, data *telegram.UserDa
 		return fmt.Errorf("failed to set data for id %d: %w", id, err)
 	}
 
-	log.Debugf("new data is written for user ID %d", id)
+	log.Debugf("new data is written for user ID %s", id)
 
 	return nil
 }
@@ -60,8 +56,8 @@ func NewRedisDataStorage(cache *redis.Cache) *dataStorage {
 	}
 }
 
-func getDataByUserIDKey(id int) string {
-	return fmt.Sprintf("%s:%d", userDataKeyPrefix, id)
+func getDataByUserIDKey(id string) string {
+	return fmt.Sprintf("%s:%s", userDataKeyPrefix, id)
 }
 
 var (

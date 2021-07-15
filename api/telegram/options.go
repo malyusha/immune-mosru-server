@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"github.com/malyusha/immune-mosru-server/internal/users"
 	"github.com/malyusha/immune-mosru-server/internal/vaxcert"
 )
 
@@ -12,6 +13,18 @@ func WithWebhook(url string, listenAddr string) Option {
 			addr:      listenAddr,
 			publicURL: url,
 		}
+	}
+}
+
+func WithUsersService(srvc users.Service) Option {
+	return func(b *Bot) {
+		b.users = srvc
+	}
+}
+
+func WithAdminUserId(id int) Option {
+	return func(b *Bot) {
+		b.adminUserId = id
 	}
 }
 

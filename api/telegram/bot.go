@@ -8,17 +8,18 @@ import (
 
 	tb "gopkg.in/tucnak/telebot.v2"
 
+	"github.com/malyusha/immune-mosru-server/internal/users"
 	"github.com/malyusha/immune-mosru-server/internal/vaxcert"
 	"github.com/malyusha/immune-mosru-server/pkg/logger"
 )
 
 const (
-	maxQRGenerations = 5
+	startCommand  = "/start"
 )
 
 type DataStorage interface {
-	GetData(ctx context.Context, id int) (*UserData, error)
-	SetData(ctx context.Context, id int, state *UserData) error
+	GetData(ctx context.Context, id string) (*UserData, error)
+	SetData(ctx context.Context, id string, state *UserData) error
 }
 
 type QRGen interface {
@@ -26,12 +27,12 @@ type QRGen interface {
 }
 
 type Bot struct {
+	adminUserId int
 	qrgen   QRGen
+	users   users.Service
 	vaxcert vaxcert.Service
 	logger  logger.Logger
 	api     *tb.Bot
-
-	chatter *chatter
 
 	webhookParams *webhookParams
 	machine       *Machine
@@ -73,9 +74,9 @@ func (b *Bot) Start(ctx context.Context) chan error {
 
 func NewBot(token string, opts ...Option) (*Bot, error) {
 	settings := tb.Settings{
-		Reporter: func(err error) {
+		/*Reporter: func(err error) {
 			logger.Errorf("bot error: %s", err.Error())
-		},
+		},*/
 		Token:  token,
 		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
 	}
@@ -108,6 +109,8 @@ func NewBot(token string, opts ...Option) (*Bot, error) {
 		}
 	}
 
+	bot.api.Poller = tb.NewMiddlewarePoller(bot.api.Poller, bot.NewAuthMiddleware())
+
 	if bot.dataStorage == nil {
 		bot.logger.Warn("Running bot with in-memory data storage. Storage is not persisted. Ensure this is correct configuration.")
 		bot.dataStorage = newInmemStorage()
@@ -124,45 +127,29 @@ func NewBot(token string, opts ...Option) (*Bot, error) {
 	bot.machine = createGenerateCommandMachine(bot.stateManager)
 	bot.registerHandlers()
 
-	defaultResponses := []string{
-		"Не понимаю что тебе нужно",
-		"Вот тут внизу кнопки - это все что я могу сделать в данный момент",
-		"Я не самый лучший собеседник",
-		"Спроси себя - зачем ты тут, затем действуй",
-		"Вспомни обо мне когда тебя не пустят попить {твой_любимый_хипстерский_коктейл} в пятницу вечером",
-		"Вот у ребят уже есть код, а у тебя?",
-	}
-
-	lastResponses := []string{
-		"Я устал, я ухожу",
-		"Больше не хочу говорить с тобой без дела, считай это последнее предупреждение",
-		"Так, разговор наш потихоньку заходит в тупик, давай по делу",
-	}
-
-	bot.chatter = newChatter(defaultResponses, lastResponses)
 	return bot, nil
 }
 
-func (b *Bot) getUserChatState(u *tb.User) (ChatState, error) {
+func (b *Bot) getUserChatState(id string) (ChatState, error) {
 	ctx := context.Background()
-	st, err := b.stateManager.GetState(ctx, u.ID)
+	st, err := b.stateManager.GetState(ctx, id)
 	if err != nil {
 		if err != ErrStateMissing {
 			return "", fmt.Errorf("failed to gen chat state: %w", err)
 		}
 
 		st = Started
-		if err = b.stateManager.SetState(ctx, u.ID, st); err != nil {
-			return "", fmt.Errorf("failed to set initial state of chat for user ID %q: %w", u.ID, err)
+		if err = b.stateManager.SetState(ctx, id, st); err != nil {
+			return "", fmt.Errorf("failed to set initial state of chat for user ID %q: %w", id, err)
 		}
 	}
 
 	return st, nil
 }
 
-func (b *Bot) getUserData(u *tb.User) (*UserData, error) {
+func (b *Bot) getUserData(id string) (*UserData, error) {
 	ctx := context.Background()
-	st, err := b.dataStorage.GetData(ctx, u.ID)
+	st, err := b.dataStorage.GetData(ctx, id)
 	if err != nil {
 		if err != ErrDataMissing {
 			return nil, err
@@ -170,7 +157,7 @@ func (b *Bot) getUserData(u *tb.User) (*UserData, error) {
 
 		// create new base state when state is missing
 		st = InitialUserData()
-		if err := b.dataStorage.SetData(ctx, u.ID, st); err != nil {
+		if err := b.dataStorage.SetData(ctx, id, st); err != nil {
 			return nil, fmt.Errorf("failed to create new base state: %w", err)
 		}
 	}
@@ -178,14 +165,54 @@ func (b *Bot) getUserData(u *tb.User) (*UserData, error) {
 	return st, nil
 }
 
-func (b *Bot) handleError(recipient tb.Recipient, err error) {
+// returns new state machine for manipulating commands and chat state.
+func createGenerateCommandMachine(manager StateManager) *Machine {
+	machine := NewMachine(manager)
+
+	// enter invite command
+	machine.AddTransitions(InviteInit, Started)
+	machine.AddTransitions(InviteInit, InviteRequested)
+	machine.AddTransitions(InviteRequested, Started)
+
+	machine.AddStateHandler(InviteInit, inviteInitStep)
+	machine.AddStateHandler(InviteRequested, inviteInputStep)
+
+	// generate QR code command
+	machine.AddTransitions(GenerateStart, Started) // because user can exceed number or qr code generations.
+	machine.AddTransitions(GenerateStart, CredentialsRequested)
+	machine.AddTransitions(CredentialsRequested, DateBirthRequested)
+	machine.AddTransitions(DateBirthRequested, CredentialsConfirmation)
+	machine.AddTransitions(CredentialsConfirmation, CredentialsRequested, Started)
+
+	machine.AddStateHandler(GenerateStart, generateStartStep)
+	machine.AddStateHandler(CredentialsRequested, credentialsStep)
+	machine.AddStateHandler(DateBirthRequested, birthdayStep)
+	machine.AddStateHandler(CredentialsConfirmation, confirmationStep)
+
+	return machine
+}
+
+func handleError(ctx Context, err error) {
 	if err == nil {
 		return
 	}
-	logger.Errorf("handle error: %s", err)
 
-	if _, err := b.api.Send(recipient, "Что-то со мной не так. Попробуй еще разок"); err != nil {
-		logger.Errorf("failed to send fail message to user: %s", err)
+	log := logger.WithContext(ctx)
+
+	var msg string
+	if IsInternal(err) {
+		log.Error(err.Error())
+		msg = "Что-то со мной не так. Попробуй еще разок"
+	} else {
+		msg = err.Error()
+	}
+
+	if ctx != nil {
+		if err := ctx.Send(msg); err != nil {
+			logger.Errorf("failed to send fail message to sender: %s", err)
+		}
+	} else {
+		logger.Errorf("context is nil. error received: %s", err)
 	}
 }
 

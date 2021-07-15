@@ -10,6 +10,7 @@ import (
 	"github.com/malyusha/immune-mosru-server/internal"
 	"github.com/malyusha/immune-mosru-server/pkg/logger"
 	"github.com/malyusha/immune-mosru-server/pkg/redis"
+	"github.com/malyusha/immune-mosru-server/pkg/util"
 )
 
 const (
@@ -19,6 +20,7 @@ const (
 )
 
 type NewCertificateData struct {
+	OwnerID     string
 	LastName    string
 	FirstName   string
 	SecondName  string
@@ -35,12 +37,14 @@ type Service interface {
 type service struct {
 	cache  *redis.Cache
 	logger logger.Logger
+	users  internal.UsersStorage
 	certs  internal.CertificatesStorage
 }
 
-func NewService(certs internal.CertificatesStorage, cache *redis.Cache) *service {
+func NewService(certs internal.CertificatesStorage, users internal.UsersStorage, cache *redis.Cache) *service {
 	return &service{
 		cache:  cache,
+		users:  users,
 		logger: logger.With(logger.Fields{"package": "CERT_SERVICE"}),
 		certs:  certs,
 	}
@@ -107,8 +111,13 @@ func (s *service) CreateVaxCert(ctx context.Context, data NewCertificateData) (*
 	log := s.logger.WithContext(ctx)
 	log.Debug("creating new certificate")
 	var cert *internal.VaxCert
+	user, err := s.users.FindUser(ctx, internal.FindUserFilter{ID: &data.OwnerID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user by ID when creating certificate: %w", err)
+	}
+
 	for cert == nil {
-		code := generateCertCode(certCodeLen)
+		code := util.GenerateCode(certCodeLen)
 		exists, err := s.certs.Exists(ctx, code)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check whether certificate exists: %w", err)
@@ -122,6 +131,13 @@ func (s *service) CreateVaxCert(ctx context.Context, data NewCertificateData) (*
 		cert, err = s.certs.CreateCert(ctx, *cert)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create certificate: %w", err)
+		}
+
+		user.QRGenerationsLeft--
+		if err := s.users.UpdateUser(ctx, user.ID, *user); err != nil {
+			log.
+				With(logger.Fields{"user_id": user.ID, "new_generations_left": user.QRGenerationsLeft}).
+				Errorf("failed to update QR generations for user: %s", err)
 		}
 	}
 
@@ -139,5 +155,5 @@ func (s *service) clearCertsListCache(ctx context.Context) error {
 }
 
 func createCertificateFromData(code string, data NewCertificateData) *internal.VaxCert {
-	return internal.CreateVaxCert(code, data.FirstName, data.LastName, data.SecondName, data.DateOfBirth)
+	return internal.CreateVaxCert(code, data.OwnerID, data.FirstName, data.LastName, data.SecondName, data.DateOfBirth)
 }

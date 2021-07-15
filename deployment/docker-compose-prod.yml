@@ -10,15 +10,6 @@ services:
   immune-frontend:
     image: registry.digitalocean.com/malyusha/immune-frontend:latest
   nginx:
-    build:
-      context: ./nginx
-      network: host
-      args:
-        - CERTBOT_EMAIL=info@vaxhole.ru
-        - DOMAIN_LIST=lmune-mos.ru,vaxhole.ru
-    ports:
-      - "80:80"
-      - "443:443"
     environment:
-      - VAXHOLE_SERVER_NAME=vaxhole.ru
       - IMMUNE_SERVER_NAME=lmune-mos.ru
+      - VAXHOLE_SERVER_NAME=vaxhole.ru

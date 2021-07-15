@@ -31,6 +31,7 @@ func (c *certsStorage) ListIndexes() []mongo.IndexModel {
 type Cert struct {
 	mongodb.DefaultDocument `bson:",inline"`
 
+	OwnerID     string `json:"owner_id" bson:"owner_id"`
 	Code        string `json:"code" bson:"code"`
 	FirstName   string `json:"first_name" bson:"first_name"`
 	LastName    string `json:"last_name" bson:"last_name"`
@@ -42,7 +43,7 @@ type Cert struct {
 
 func (c *certsStorage) ListCertificates(ctx context.Context) ([]*internal.VaxCert, error) {
 	dst := make([]Cert, 0)
-	err := c.SimpleFind(ctx,  &dst, bson.M{})
+	err := c.SimpleFind(ctx, &dst, bson.M{})
 	if err != nil {
 		return nil, errdefs.Unknown(err)
 	}
@@ -105,7 +106,8 @@ func (c *certsStorage) CreateCert(ctx context.Context, cert internal.VaxCert) (*
 
 func mapCert(c Cert) *internal.VaxCert {
 	return &internal.VaxCert{
-		ID:          c.ID.String(),
+		ID:          c.ID.Hex(),
+		OwnerID:     c.OwnerID,
 		Code:        c.Code,
 		FirstName:   c.FirstName,
 		LastName:    c.LastName,
@@ -120,6 +122,7 @@ func mapCert(c Cert) *internal.VaxCert {
 func mapCertToMongo(c *internal.VaxCert) *Cert {
 	cert := &Cert{
 		Code:        c.Code,
+		OwnerID:     c.OwnerID,
 		FirstName:   c.FirstName,
 		LastName:    c.LastName,
 		SecondName:  c.SecondName,

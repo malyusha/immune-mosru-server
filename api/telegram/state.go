@@ -10,21 +10,15 @@ import (
 type ChatState string
 
 type StateManager interface {
-	GetState(ctx context.Context, id int) (ChatState, error)
-	SetState(ctx context.Context, id int, state ChatState) error
-}
-
-var NoopHandler = &StateHandler{
-	Handle: func(ctx *Context) (*Context, error) {
-		return ctx, nil
-	},
+	GetState(ctx context.Context, id string) (ChatState, error)
+	SetState(ctx context.Context, id string, state ChatState) error
 }
 
 type StateHandler struct {
 	Title   string
-	OnEnter func(ctx *Context) error
-	Handle  func(ctx *Context) (*Context, error)
-	OnExit  func(ctx *Context) error
+	OnEnter func(ctx Context) error
+	Handle  func(ctx Context) (Context, error)
+	OnExit  func(ctx Context) error
 }
 
 type Machine struct {
@@ -37,7 +31,7 @@ func (m *Machine) GetHandlerForState(state ChatState) *StateHandler {
 	return m.states[state]
 }
 
-func (m *Machine) TransitFrom(id int, from, to ChatState) (*StateHandler, error) {
+func (m *Machine) TransitFrom(id string, from, to ChatState) (*StateHandler, error) {
 	if !m.isAllowedToTransit(from, to) {
 		return nil, ErrTransitionNowAllowed
 	}
@@ -140,5 +134,5 @@ func newInmemState() *inmemState {
 
 var (
 	ErrTransitionNowAllowed = errors.New("transition is not allowed")
-	ErrStateMissing         = errors.New("no state for user exist")
+	ErrStateMissing         = errors.New("no state for sender exist")
 )
